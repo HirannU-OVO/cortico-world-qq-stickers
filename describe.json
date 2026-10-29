@@ -1,0 +1,78 @@
+{
+  "tools": [
+    {
+      "name": "sticker_catalog",
+      "description": "挑选或浏览本地 QQ/桌宠表情包库。可按情感分类（如 开心、得意、难过、困惑，支持同义词转换）、角色或关键词挑选。工具内置频控冷却与概率掷骰机制：当返回 [出图跳过: ...] 时，表示本次属于正常频控节流，请直接用纯文字自然回复，绝不要道歉或提及冷却。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "情感分类",
+            "description": "按一级文件夹筛选，如 开心、得意、困惑、难过；支持模糊匹配与同义词转换（如 快乐->开心、认真->坚定）。留空时不限制分类。"
+          },
+          "character": {
+            "type": "string",
+            "title": "角色",
+            "description": "按文件名前缀的角色筛选，如 大肥鱼、DeepSeek、菲比；模糊匹配。"
+          },
+          "keyword": {
+            "type": "string",
+            "title": "关键词",
+            "description": "在分类、角色、文件名里模糊综合匹配。"
+          },
+          "random": {
+            "type": "boolean",
+            "title": "随机打乱",
+            "default": true,
+            "description": "是否打乱返回顺序（默认 true，乱序挑选；false 则按分类/角色/名称确定性排序）。"
+          },
+          "avoid": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "避开的表情",
+            "description": "需要临时避开的表情包路径或文件名列表（如最近几轮发过的图），匹配充足时优先排除。"
+          },
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "title": "强制出图",
+            "description": "是否绕过概率掷骰与冷却时间限制（测试或极关键情绪场景使用）。"
+          },
+          "limit": {
+            "type": "number",
+            "title": "条数",
+            "default": 5,
+            "description": "本次返回多少条候选，默认 5，最大 50。"
+          },
+          "offset": {
+            "type": "number",
+            "title": "偏移",
+            "default": 0,
+            "description": "从第几条开始，用于翻页，默认 0。"
+          }
+        },
+        "required": []
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "按情感或角色浏览/挑选表情包；内置冷却与概率控制，拿到文件名后用 [表情包:路径] 发送。",
+        "en": "Browse and pick stickers by emotion/character with built-in cooldown & chance control."
+      }
+    }
+  ],
+  "events": [],
+  "prompts": [
+    {
+      "key": "worlds.sticker-catalog.envPrompt",
+      "title": "表情包目录 · 环境提示词",
+      "role": "envPrompt",
+      "content": "## 表情包使用纪律\n{{stickerPrompt}}\n\n当前表情库共 {{stickerTotal}} 张图片，分类：{{stickerCategories}}。\n发图必须先调用 sticker_catalog 拿到真实相对路径，写进回复 `[表情包:分类/文件名]`，不要臆造路径；若工具返回跳过提示，直接发文字，不要向用户道歉。\n"
+    }
+  ]
+}
