@@ -212,7 +212,7 @@ const TOOL_SPEC = {
 
 /** 只读地浏览与挑选表情库：按分类/角色/关键词挑图，供 QQ bot 用 [表情包:路径] 发送。 */
 class StickerCatalogWorld implements World {
-  readonly id = 'sticker-catalog';
+  readonly id = 'qq-stickers';
   private readonly cfg: CatalogConfig;
   private host: WorldHost | null = null;
   private cache: { at: number; scan: Scan } | null = null;
@@ -260,21 +260,21 @@ class StickerCatalogWorld implements World {
       badges: [{ label: '表情包', value: this.scan().unique, tone: 'on' as const }],
       config: [
         {
-          id: 'world:sticker-catalog',
-          owner: 'world:sticker-catalog',
+          id: 'world:qq-stickers',
+          owner: 'world:qq-stickers',
           schema: {
             type: 'object',
-            title: '表情包目录 (大肥鱼专属)',
+            title: 'QQ表情管理',
             description: '本地情感表情包库：内置触发概率、防连发冷却锁、同义词智能映射与去重洗牌机制。',
             properties: {
-              'worlds.sticker-catalog.emojiDir': {
+              'worlds.qq-stickers.emojiDir': {
                 type: 'string',
                 title: '表情库根目录',
                 description: '一级子文件夹即情感分类。改完约 5 秒后生效。',
                 'x-hot': true,
                 'x-path': { kind: 'directory' as const, recommendedDir: this.root() },
               },
-              'worlds.sticker-catalog.limit': {
+              'worlds.qq-stickers.limit': {
                 type: 'number',
                 title: '默认返回条数',
                 description: 'sticker_catalog 不传 limit 时的默认候选条数，1~50。',
@@ -282,7 +282,7 @@ class StickerCatalogWorld implements World {
                 maximum: 50,
                 'x-hot': true,
               },
-              'worlds.sticker-catalog.defaultChance': {
+              'worlds.qq-stickers.defaultChance': {
                 type: 'number',
                 title: '基础触发概率 (0~1)',
                 description: '模型尝试挑图时命中的基础概率。默认 0.5（50% 概率出图，其余跳过引导模型纯文字回复）。',
@@ -291,7 +291,7 @@ class StickerCatalogWorld implements World {
                 multipleOf: 0.05,
                 'x-hot': true,
               },
-              'worlds.sticker-catalog.cooldownSeconds': {
+              'worlds.qq-stickers.cooldownSeconds': {
                 type: 'number',
                 title: '全局发图冷却时间 (秒)',
                 description: '两次发图之间的最短间隔时间（默认 45 秒）。处于冷却期内会返回友好跳过提示。设为 0 关闭。',
@@ -299,7 +299,7 @@ class StickerCatalogWorld implements World {
                 maximum: 600,
                 'x-hot': true,
               },
-              'worlds.sticker-catalog.categoryCooldownSeconds': {
+              'worlds.qq-stickers.categoryCooldownSeconds': {
                 type: 'number',
                 title: '同类情感冷却时间 (秒)',
                 description: '同一分类（如 开心）连续出图的最短间隔（默认 90 秒），避免反复发同一种表情。设为 0 关闭。',
@@ -307,7 +307,7 @@ class StickerCatalogWorld implements World {
                 maximum: 600,
                 'x-hot': true,
               },
-              'worlds.sticker-catalog.recentHistorySize': {
+              'worlds.qq-stickers.recentHistorySize': {
                 type: 'number',
                 title: '防重复历史记忆窗口',
                 description: '在内存中记住最近输出过的表情数量（默认 10 张），匹配充裕时强制避开，杜绝连撞。',
@@ -315,19 +315,19 @@ class StickerCatalogWorld implements World {
                 maximum: 30,
                 'x-hot': true,
               },
-              'worlds.sticker-catalog.defaultRandom': {
+              'worlds.qq-stickers.defaultRandom': {
                 type: 'boolean',
                 title: '默认随机乱序',
                 description: '调用不显式传 random 时是否默认随机打乱候选顺序（默认开启）。',
                 'x-hot': true,
               },
-              'worlds.sticker-catalog.promptEnabled': {
+              'worlds.qq-stickers.promptEnabled': {
                 type: 'boolean',
                 title: '注入情绪配图说明',
                 description: '关掉后系统前缀里不再出现这段发图纪律说明，工具依然可用。',
                 'x-hot': true,
               },
-              'worlds.sticker-catalog.promptText': {
+              'worlds.qq-stickers.promptText': {
                 type: 'string',
                 title: '情绪配图说明正文',
                 description: `留空用内置默认；最多 ${PROMPT_MAX_LENGTH} 字。改完下一轮生效。`,
@@ -339,8 +339,8 @@ class StickerCatalogWorld implements World {
       ],
       promptDocs: [
         {
-          key: 'worlds.sticker-catalog.envPrompt',
-          title: '表情包目录 · 环境提示词',
+          key: 'worlds.qq-stickers.envPrompt',
+          title: 'QQ表情管理 · 环境提示词',
           description: '进 system 前缀的那一段：可编辑的发图纪律，加上库规模与分类概览。',
           path: ENV_PROMPT_FILE,
           role: 'envPrompt' as const,
@@ -609,8 +609,8 @@ class StickerCatalogWorld implements World {
 }
 
 export const STICKER_CATALOG_WORLD: WorldDefinition<CatalogConfig> = {
-  id: 'sticker-catalog',
-  label: '表情包目录',
+  id: 'qq-stickers',
+  label: 'QQ表情管理',
   defaults: () => ({
     enabled: false,
     limit: 5,

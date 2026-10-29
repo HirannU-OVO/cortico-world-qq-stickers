@@ -69,8 +69,8 @@
   "events": [],
   "prompts": [
     {
-      "key": "worlds.sticker-catalog.envPrompt",
-      "title": "表情包目录 · 环境提示词",
+      "key": "worlds.qq-stickers.envPrompt",
+      "title": "QQ表情管理 · 环境提示词",
       "role": "envPrompt",
       "content": "## 表情包使用纪律\n{{stickerPrompt}}\n\n当前表情库共 {{stickerTotal}} 张图片，分类：{{stickerCategories}}。\n发图必须先调用 sticker_catalog 拿到真实相对路径，写进回复 `[表情包:分类/文件名]`，不要臆造路径；若工具返回跳过提示，直接发文字，不要向用户道歉。\n"
     }
