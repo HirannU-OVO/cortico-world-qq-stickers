@@ -4,14 +4,23 @@
   "type": "module",
   "description": "Cortico World 扩展：QQ表情管理，按情感分类挑选/浏览本地 QQ 表情包库，内置频控冷却、概率掷骰、同义词智能映射与防重复机制。供 bot 挑选后以 [表情包:路径] 发送。只读，不改表情包本体。",
   "license": "MIT",
+  "keywords": [
+    "cortico-world",
+    "stickers",
+    "qq",
+    "emoji"
+  ],
   "engines": {
     "node": ">=22"
   },
   "main": "./src/index.ts",
+  "scripts": {
+    "check": "node --check src/index.ts"
+  },
   "cortico": {
     "kind": "world",
     "api": 6,
-    "label": "QQ表情管理",
+    "displayName": "QQ表情管理",
     "describe": "describe.json"
   },
   "files": [
