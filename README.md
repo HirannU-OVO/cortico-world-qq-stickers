@@ -11,17 +11,11 @@
 
 ## 核心特性
 
-- **单一仲裁的配图工具链**：
-  - `qq_sticker_send` 统一仲裁发图概率、保底计数、全局/分类冷却与防连发窗口；
-  - 掷骰未通过时显式返回 `[出图跳过]` 与原因（含保底进度），引导模型直接以自然文本收尾；
-- **多级情绪分类与同义词映射**：
-  - 本地文件夹即分类（如 `开心`、`得意`、`难过`、`困惑`），内置同义词与情绪衍生词映射（如「兴奋 → 开心」「委屈 → 难过」）；
-- **细粒度频控与防刷屏**：
-  - 全局发图冷却 + 单分类独立冷却 + 内存 LRU 滑动窗口，自动规避近期重复与分类扎堆；
-- **语义检索（可选增强）**：
-  - 每张表情的「使用场景描述」经 embedding 入索引，`mood` 一句话即可召回最贴切的候选池；
-  - 检索引擎（Hybrid Recall：BM25 + Cosine + RRF 融合）复用 [cortico-world-memory](https://github.com/hth768/cortico-world-memory) 的实现，跨包动态加载，**未随本仓库分发**；
-  - 三级退化：语义检索 → 同义词表匹配 → 全库随机，任一环节不可用都不影响出图；
+- **单一仲裁的配图工具链**：`qq_sticker_send` 统一仲裁发图概率、保底计数、全局/分类冷却与防连发窗口；掷骰未通过时显式返回 `[出图跳过]` 与原因（含保底进度），引导模型直接以自然文本收尾。
+- **多级情绪分类与同义词映射**：本地文件夹即分类（如 `开心`、`得意`、`难过`、`困惑`），内置同义词与情绪衍生词映射（如「兴奋 → 开心」「委屈 → 难过」）。
+- **细粒度频控与防刷屏**：全局发图冷却 + 单分类独立冷却 + 内存 LRU 滑动窗口，自动规避近期重复与分类扎堆。
+- **语义检索（可选增强）**：每张表情的「使用场景描述」经 embedding 入索引，`mood` 一句话即可召回最贴切的候选池；检索引擎（Hybrid Recall：BM25 + Cosine + RRF 融合）复用 [cortico-world-memory](https://github.com/hth768/cortico-world-memory) 的实现，跨包动态加载、**未随本仓库分发**。
+- **三级退化**：语义检索 → 同义词表匹配 → 全库随机，任一环节不可用都不影响出图。
 - **治理边界**：本扩展被停用时工具随之消失，任何链路都无法发图；发图频率只由本扩展裁决。
 
 ---
@@ -62,10 +56,12 @@
 }
 ```
 
-### 3. 发图通道（二选一）
+### 3. 选择发图通道
 
-- **AstrBot 桥接模式**（`bridgeMode: true`）：配图由本扩展经 AstrBot Open API 直发本机表情，对话轮与主动搭话轮通用；需同时配置运营层的 `bridgeApiUrl` / `bridgeApiToken` / `bridgePlatformId`；
-- **协议扩展模式**（`bridgeMode: false`）：`qq_sticker_pick` 掷骰后返回候选，模型把 `[表情包:分类/文件名]` 写进正文，由 QQ 协议扩展（如 `cortico-world-qq-final`）负责发出。
+| 通道 | 配置 | 行为 |
+| :--- | :--- | :--- |
+| **AstrBot 桥接** | `bridgeMode: true` | 配图由本扩展经 AstrBot Open API 直发本机表情，对话轮与主动搭话轮通用；需配好运营层的 `bridgeApiUrl` / `bridgeApiToken` / `bridgePlatformId` |
+| **协议扩展** | `bridgeMode: false` | `qq_sticker_pick` 掷骰后返回候选，模型把 `[表情包:分类/文件名]` 写进正文，由 QQ 协议扩展（如 `cortico-world-qq-final`）发出 |
 
 ### 4. 语义检索（可选）
 
@@ -75,11 +71,14 @@
 
 ## 工具列表
 
-| 工具名 | 权限分类 | 作用与机制 |
-| :--- | :---: | :--- |
-| `qq_sticker_send(to, mood?)` | 执行 | 桥接模式专用：按掷骰仲裁后直发一张贴合情绪的单段表情；`mood` 一句话描述场景，走语义检索选图 |
-| `qq_sticker_file(mood?, category?, file?)` | 只读 | 抽取指定或匹配的一张图片，返回 `log:` 句柄供多模态发信使用（不掷骰、不受频控） |
-| `qq_sticker_pick(...)` | 只读 | 协议扩展模式专用：掷骰并返回候选列表，模型把 `[表情包:路径]` 写进正文 |
+> 下表「权限」为工具对文件的读写级别：只读不落盘，执行会向外部发信，管理会改动表情库。
+
+| 工具（权限） | 作用与机制 |
+| :--- | :--- |
+| `qq_sticker_send(to, mood?)`<br>执行 | 桥接模式专用。按掷骰仲裁后直发一张贴合情绪的单段表情；`mood` 可写一句话描述场景，走语义检索选图 |
+| `qq_sticker_file(mood?, category?, file?)`<br>只读 | 抽取指定或匹配的一张图片，返回 `log:` 句柄供多模态发信使用（不掷骰、不受频控） |
+| `qq_sticker_pick(...)`<br>只读 | 协议扩展模式专用。掷骰并返回候选列表，模型把 `[表情包:路径]` 写进正文 |
+| `qq_sticker_curate(operation, ...)`<br>管理 | 表情库策展。`audit` 列缺描述/待补向量/incoming 未归类；`inspect` 取图给模型看；`describe` 提交描述与标签（自动建向量）；`alias` 维护分类口语别名；`organize` 把 incoming 新图归入分类 |
 
 ---
 
@@ -88,7 +87,7 @@
 ### 面板可见（`worlds.qq-stickers`）
 
 | 配置项 | 类型 | 默认值 | 说明 |
-| :--- | :---: | :--- | :--- |
+| :--- | :--- | :--- | :--- |
 | `enabled` | boolean | `false` | 是否启用表情管理扩展 |
 | `emojiDir` | string | `""` | 表情包根目录（一级子文件夹即分类） |
 | `bridgeMode` | boolean | `false` | AstrBot 桥接模式：配图改由 `qq_sticker_send` 直发 |
@@ -98,7 +97,8 @@
 | `categoryCooldownSeconds` | number | `90` | 同一分类的最短间隔（秒，0 关闭） |
 | `recentHistorySize` | number | `10` | 防连发滑动窗口（记住最近张数） |
 | `defaultRandom` | boolean | `true` | 候选是否默认打乱 |
-| `promptEnabled` / `promptText` | boolean / string | `true` / `""` | 是否注入配图纪律、附加说明 |
+| `promptEnabled` | boolean | `true` | 是否注入配图纪律说明 |
+| `promptText` | string | `""` | 附加说明，接在纪律正文之后（两套通道都生效） |
 
 ### 运营层（配置文件，不进面板）
 
@@ -114,9 +114,9 @@
 
 ## 语义索引
 
-- **描述来源**：兼容 [meme_manager](https://github.com/anka-afk/astrbot_plugin_meme_manager)（anka，MIT）的 `semantic_metadata.json` 格式，用 `scripts/export-semantic.cjs` 按 `content_sha256` 映射到本地文件路径，产出 `sticker-semantic/semantic.json`；
-- **向量重算**：描述文本统一用本机 embedding 端点重算，不与上游模型的维度/向量绑定；
-- **增量维护**：索引与本地库 diff 后为新图补描述即可；旧索引不受影响。
+- **描述来源**：兼容 [meme_manager](https://github.com/anka-afk/astrbot_plugin_meme_manager)（anka，MIT）的 `semantic_metadata.json` 格式，用 `scripts/export-semantic.cjs` 按 `content_sha256` 映射到本地文件路径，产出 `sticker-semantic/semantic.json`。
+- **向量重算**：描述文本统一用本机 embedding 端点重算，不与上游模型的维度/向量绑定。
+- **增量维护**：索引与本地库 diff 后为新图补描述即可，旧索引不受影响；`qq_sticker_curate` 的 `audit` / `describe` 就是为此准备的。
 
 ---
 

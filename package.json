@@ -1,6 +1,6 @@
 {
   "name": "cortico-world-qq-stickers",
-  "version": "0.3.0-dev.10",
+  "version": "0.3.0",
   "type": "module",
   "description": "Cortico World 扩展（QQ 生态）：QQ 表情管理，按情感/场景挑选并浏览本地 QQ 表情包库，内置频控冷却、概率掷骰、同义词智能映射与防重复机制；供 bot 以 [表情包:路径] 发送。只读，不改表情包本体。",
   "license": "MIT",
