@@ -1,0 +1,194 @@
+{
+  "tools": [
+    {
+      "name": "qq_sticker_pick",
+      "description": "【每轮回复前必调一次，不要和发消息放在同一轮】决定这一轮要不要配表情包。工具按设定概率掷骰：通过时返回候选列表，由你挑一张合适的，把 [表情包:分类/文件名] 原样写进正文；未命中或冷却中返回 [出图跳过: ...]，请直接用纯文字自然回复。可传情感/场景词（如 开心、得意、困了、晚安，支持同义词转换），也可按分类、角色或关键词筛选候选。返回 [出图跳过: ...] 属于正常的节流结果，不是报错，绝不要道歉或提及冷却。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mood": {
+            "type": "string",
+            "title": "情感 / 场景",
+            "description": "想表达的情感、场景或分类，如 开心、得意、被夸了、难过、困了；支持同义词转换（快乐->开心、认真->坚定）。留空则从全库挑选。"
+          },
+          "category": {
+            "type": "string",
+            "title": "情感分类",
+            "description": "按一级文件夹筛选，如 开心、得意、困惑、难过；支持模糊匹配与同义词转换。留空时不限制分类。"
+          },
+          "character": {
+            "type": "string",
+            "title": "角色",
+            "description": "按文件名前缀的角色筛选，如 小明、助手、猫猫；模糊匹配。"
+          },
+          "keyword": {
+            "type": "string",
+            "title": "关键词",
+            "description": "在分类、角色、文件名里模糊综合匹配。"
+          },
+          "random": {
+            "type": "boolean",
+            "title": "随机打乱",
+            "description": "是否打乱返回顺序（默认 true，乱序挑选；false 则按分类/角色/名称确定性排序）。"
+          },
+          "avoid": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "避开的表情",
+            "description": "需要临时避开的表情包路径或文件名列表（如最近几轮发过的图），匹配充足时优先排除。"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "强制出图",
+            "description": "是否绕过概率掷骰与冷却时间限制（测试或极关键情绪场景使用）。"
+          },
+          "limit": {
+            "type": "number",
+            "title": "条数",
+            "description": "本次返回多少条候选，默认取配置值，最大 20。"
+          },
+          "offset": {
+            "type": "number",
+            "title": "偏移",
+            "description": "从第几条开始，用于翻页，默认 0。"
+          }
+        },
+        "required": []
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "每轮回复前必调：按概率掷骰决定是否配图，通过时返回候选列表，挑一张用 [表情包:路径] 发送。",
+        "en": "Call before each reply: dice by configured chance, return candidates on pass, send via [sticker:path]."
+      }
+    },
+    {
+      "name": "qq_sticker_file",
+      "description": "把本机表情包里的一张图片作为附件取出来（回执里会带一个 log: 开头的句柄）。把句柄填进 astrbot_send_message 的 image 参数即可发到 QQ。不依赖 AstrBot 侧的 send_meme，主动搭话也能用。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mood": {
+            "type": "string",
+            "title": "情感 / 场景",
+            "description": "想表达的情绪或场景。可以直接写一句话或口语描述（如「没听懂但还得点头」「被夸了有点飘」），会走语义检索匹配最贴切的那几张；也可以写标准分类词（开心、得意、困了），走同义词表。留空则全库随机。"
+          },
+          "category": {
+            "type": "string",
+            "title": "分类",
+            "description": "如 开心 / 得意 / 担心"
+          },
+          "file": {
+            "type": "string",
+            "title": "文件名",
+            "description": "精确到某一张（含扩展名）"
+          }
+        }
+      }
+    },
+    {
+      "name": "qq_sticker_send",
+      "description": "配图：在正文发出后调用，为这条消息补一张表情包（单独一段收尾）。配不配图由它内部掷骰（概率/保底/冷却统一仲裁），没通过就纯文字收尾，不要重试也不要向对方解释。mood 可写一句话描述此刻的情绪或场景（如「被夸了有点不好意思」），挑图会更贴。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "to": {
+            "type": "string",
+            "title": "投递地址",
+            "description": "private:<QQ号> 或 group:<群号>（原样照抄提示词里给的）"
+          },
+          "mood": {
+            "type": "string",
+            "title": "情感 / 场景",
+            "description": "想表达的情绪或场景，可写整句话（如「被夸了有点不好意思」），掷骰通过时按语义选图；也可写标准分类词；留空则全库随机。"
+          }
+        },
+        "required": [
+          "to"
+        ]
+      },
+      "tags": [
+        "speak"
+      ],
+      "summary": {
+        "zh": "按掷骰补一张本机表情包（经 AstrBot Open API 独立一段发出），对话轮与主动搭话轮通用。",
+        "en": "Attach a sticker after a proactive message via the AstrBot Open API."
+      }
+    },
+    {
+      "name": "qq_sticker_curate",
+      "description": "表情库策展：新图入库、补语义描述、维护分类别名。判断交给模型、落盘由插件完成。operation=audit 列缺描述/待归类清单；inspect 取图给你看；describe 提交看图后的 caption 与 tags（顺带生成向量）；alias 维护分类口语别名；organize 把 incoming 里的新图归入分类。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "audit",
+              "inspect",
+              "describe",
+              "alias",
+              "organize"
+            ],
+            "description": "要做的策展动作。"
+          },
+          "rel": {
+            "type": "string",
+            "title": "图片路径",
+            "description": "库内相对路径，如「开心/小明-开心-001.gif」；organize 时可只给文件名。"
+          },
+          "caption": {
+            "type": "string",
+            "title": "画面描述",
+            "description": "describe 用：看完图后的一句话描述。"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "标签",
+            "description": "describe 用：3~10 个口语标签。"
+          },
+          "category": {
+            "type": "string",
+            "title": "分类",
+            "description": "alias / organize 的目标分类。"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "别名列表",
+            "description": "alias 用：并入该分类的口语说法。"
+          },
+          "limit": {
+            "type": "number",
+            "title": "清单条数",
+            "description": "audit 最多列多少条（默认 8）。"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      }
+    }
+  ],
+  "events": [],
+  "prompts": [
+    {
+      "key": "worlds.qq-stickers.envPrompt",
+      "title": "QQ表情管理 · 环境提示词",
+      "role": "envPrompt",
+      "content": "## 表情包使用纪律\n{{stickerLibraryLine}}\n【先文字后图】正文先用 astrbot_send_message 发出，随后调 qq_sticker_send（mood 可写一句话描述此刻的情绪或场景，如「被夸了有点不好意思」）补一张表情包；它内部掷骰，没过就到此为止。\n【一轮最多一张】只补一张；发完不用解释为什么配这张图。\n【该不发就不发】对方在说正事、心情不好、刚道过歉，或者你这条只是把结论复述一遍，就不调 qq_sticker_send，纯文字收尾。\n【[出图跳过] 是正常的】那是节流，不是报错；接着把话说完，别解释冷却，也别道歉。\n【别写路径标记】不要写 [表情包:路径] 或 [图片:路径]，桥接链路上发不出去。\n【发指定图片】主人点名要某张图时才用 qq_sticker_file 拿 log: 句柄，再 astrbot_send_message(image=\"log:…\")。屏幕截图仍然只在主人要求时才允许。\n"
+    }
+  ]
+}
