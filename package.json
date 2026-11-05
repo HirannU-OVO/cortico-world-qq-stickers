@@ -23,21 +23,32 @@
     "kind": "world",
     "api": 6,
     "displayName": "QQ表情管理",
-    "describe": "describe.json"
+    "describe": "describe.json",
+    "tags": [
+      "qq",
+      "stickers",
+      "emoji"
+    ]
   },
   "files": [
     "src",
     "describe.json",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "author": "HirannU",
   "repository": {
     "type": "git",
-    "url": "https://github.com/HirannU-OVO/cortico-world-qq-stickers.git"
+    "url": "git+github.com/HirannU-OVO/cortico-world-qq-stickers.git"
   },
   "homepage": "https://github.com/HirannU-OVO/cortico-world-qq-stickers#readme",
   "bugs": {
     "url": "https://github.com/HirannU-OVO/cortico-world-qq-stickers/issues"
+  },
+  "private": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }
