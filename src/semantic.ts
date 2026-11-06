@@ -2,34 +2,16 @@
  * 表情语义检索：把「一句话情绪/场景」变成最贴切的表情包 rel 候选列表。
  *
  * 数据与索引都归本扩展所有（<dataDir>/semantic.json 为描述源，vector-memory.json 为向量索引）；
- * 检索引擎（Hybrid Recall = BM25 + Cosine + RRF）与 embedding 客户端跨包动态 import 兄弟扩展
- * cortico-world-memory 的模块——同一进程单实例，不重复养引擎；memory 不在/加载失败时本模块
- * 整体不可用，调用方退化到同义词表选图（现状逻辑），功能永不中断。
+ * 检索引擎（Hybrid Recall = BM25 + Cosine + RRF）与 embedding 客户端都在本包内
+ * （见 semantic-engine.ts）——不再跨包 import 兄弟扩展，装这一个就不用装别的 world。
  *
  * 向量路是增强、不是依赖：索引刚建时全部走 BM25（caption/tags 的 CJK n-gram 分词已很能打），
  * 后台补索引进度推进后向量路逐渐生效。
  */
 import { readFile, writeFile, rename } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
-/** 检索引擎与 embedding 客户端的最小接口（与 cortico-world-memory 的导出同形）。 */
-interface VectorStoreLike {
-  add(scope: string, text: string, vector: readonly number[] | null, maxPerScope: number): void;
-  hybridSearch(
-    scope: string,
-    query: string,
-    queryVector: readonly number[] | null,
-    topK: number,
-  ): Array<{ text: string; score: number; via: 'bm25' | 'vector' | 'both' }>;
-  pendingVectors(limit: number): Array<{ scope: string; index: number; text: string }>;
-  setVector(scope: string, index: number, vector: readonly number[] | null): void;
-  flush(): void;
-}
-
-interface EmbedderLike {
-  embed(text: string): Promise<readonly number[] | null>;
-}
+import { EmbeddingClient, VectorStore } from './semantic-engine.ts';
 
 export interface SemanticEmbedConfig {
   /** OpenAI 兼容 embedding 端点；留空 = 只走 BM25 文本检索（无向量路）。 */
@@ -55,6 +37,16 @@ export interface SemanticEntry {
 export interface SemanticIndex {
   /** 描述与索引是否就绪（semantic.json 读取成功）。 */
   ready(): boolean;
+  /** 索引自检：schema 版本 / 模型 / 维度 / 条数 / 与当前维度不符的条数 / 本次清掉的旧条目。 */
+  stats(): {
+    schema: number;
+    model: string;
+    dimension: number;
+    total: number;
+    indexed: number;
+    offDimension: number;
+    pruned: number;
+  };
   coverage(): SemanticCoverage;
   /** 语义检索：mood → 最贴切的 rel 列表（按贴合度降序）；不可用返回 []。 */
   search(mood: string, limit: number): Promise<string[]>;
@@ -87,16 +79,6 @@ const SCOPE = 'stickers';
 const MAX_PER_SCOPE = 2000;
 const BACKFILL_BATCH = 8;
 const BACKFILL_DELAY_MS = 150;
-
-/** 从本模块位置推导兄弟扩展 cortico-world-memory 的模块 URL。 */
-function memoryModuleUrl(file: string): string | null {
-  try {
-    const here = fileURLToPath(new URL('.', import.meta.url));
-    return `file:///${resolve(here, '..', '..', 'cortico-world-memory', 'src', file).replace(/\\/g, '/')}`;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * 加载语义索引。任何失败（无 semantic.json / memory 扩展不在 / 引擎初始化失败）
@@ -133,36 +115,24 @@ export async function loadSemanticIndex(
       relsByText.set(text, list);
     }
 
-    const storeUrl = memoryModuleUrl('vector-store.ts');
-    const embedUrl = memoryModuleUrl('embedding.ts');
-    if (!storeUrl) return null;
-    const storeMod = (await import(storeUrl)) as {
-      VectorStore: new (dataDir: string) => VectorStoreLike;
-    };
-    const store = new storeMod.VectorStore(dataDir);
+    const store = new VectorStore(dataDir);
 
     // 全量入库（add 自带按文本去重，重复启动安全）
     for (const text of relsByText.keys()) {
       store.add(SCOPE, text, null, MAX_PER_SCOPE);
     }
+    // 对账：表情删掉/改名后，旧向量不该一直留着
+    const pruned = store.prune(SCOPE, new Set(relsByText.keys()));
+    if (embed.model) store.setModel(embed.model);
 
     // embedding 客户端：端点留空时向量路关闭，BM25 照常
-    let embedder: EmbedderLike | null = null;
-    if (embed.url && embedUrl) {
-      try {
-        const embedMod = (await import(embedUrl)) as {
-          EmbeddingClient: new (cfg: Record<string, unknown>) => EmbedderLike;
-        };
-        embedder = new embedMod.EmbeddingClient({
-          embeddingProvider: 'http',
-          embeddingEndpoint: embed.url,
-          embeddingModel: embed.model || 'default',
-          embeddingTimeoutMs: embed.timeoutMs ?? 30_000,
-          embeddingSidecarUrl: '',
-        });
-      } catch {
-        embedder = null;
-      }
+    let embedder: EmbeddingClient | null = null;
+    if (embed.url) {
+      embedder = new EmbeddingClient({
+        url: embed.url,
+        model: embed.model || 'default',
+        timeoutMs: embed.timeoutMs ?? 30_000,
+      });
     }
 
     let active = true;
@@ -195,6 +165,7 @@ export async function loadSemanticIndex(
 
     return {
       ready: () => true,
+      stats: () => ({ ...store.stats(), pruned }),
       coverage: () => {
         const pending = store.pendingVectors(MAX_PER_SCOPE).filter((p) => p.scope === SCOPE).length;
         return { captions: captionCount, indexed: Math.max(0, captionCount - pending) };

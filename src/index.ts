@@ -307,7 +307,14 @@ class StickerCatalogWorld implements World {
       });
       if (this.semantic) {
         const cov = this.semantic.coverage();
-        host.log.info(`表情语义索引已就绪：${cov.captions} 条描述，向量已补 ${cov.indexed} 条（后台继续）。`);
+        const st = this.semantic.stats();
+        host.log.info(
+          `表情语义索引已就绪：${cov.captions} 条描述，向量已补 ${cov.indexed} 条（后台继续）；`
+            + `索引 v${st.schema}${st.model ? ` / 模型 ${st.model}` : ''}`
+            + `${st.dimension ? ` / ${st.dimension} 维` : ''}`
+            + `${st.offDimension ? ` / ${st.offDimension} 条维度不符已跳过` : ''}`
+            + `${st.pruned ? ` / 清掉 ${st.pruned} 条已失效` : ''}`,
+        );
       } else {
         host.log.info('表情语义索引不可用，选图退化为同义词表匹配。');
       }

@@ -1,3 +1,26 @@
+## [Unreleased]
+
+开发中（`package.json` 记 `0.3.2-dev.1`）。按规范，正式发布打 Tag 时再把这里整合成 `0.3.2`。
+
+### 变更
+
+- **语义索引改为自带引擎，不再依赖其它 world**：原来 `src/semantic.ts` 会跨包动态 import
+  `cortico-world-memory` 的 `VectorStore` / `EmbeddingClient`，那个世界一被卸载或精简，语义检索就整段失效
+  （日志「表情语义索引不可用」），对只想装表情包的用来说等于被强制多装一个 world。
+  现在检索引擎（BM25 + Cosine + RRF）与 embedding 客户端都在本包 `src/semantic-engine.ts`，零外部依赖，
+  数据文件格式保持兼容（旧 `vector-memory.json` 直接可读，无需重建）。
+- **索引加清单与自检**（参考 AstrBot meme_manager 的做法）：`vector-memory.json` 现在带
+  `schema`（格式版本）/`model_name`（出向量的模型）/`dimension`/`updated_at`；
+  启动时做维度对账（换模型后维度不符的条目检索时跳过并计数）、失效清理（表情删了对应向量清掉）、
+  后台补向量。启动日志会报「索引 v2 / 模型 xxx / 1024 维 / N 条维度不符已跳过 / 清掉 N 条已失效」。
+- **新增自测**：`test/semantic-engine.test.mjs` 12 条断言（fp16 往返、CJK 分词、BM25、向量路 via、
+  维度对账、失效清理、长文本不误删、原子落盘、两种 embedding 回包、端点留空关闭向量路）。
+  `npm test` 可跑。
+
+### 升级提示
+
+- 之前为了兼容语义检索而安装的 `cortico-world-memory` 现在**可以卸掉**，不再被本扩展需要。
+
 # 更新日志
 
 本文件记录「QQ 表情管理」扩展的版本变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。

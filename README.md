@@ -14,7 +14,7 @@
 - **单一仲裁的配图工具链**：`qq_sticker_send` 统一仲裁发图概率、保底计数、全局/分类冷却与防连发窗口；掷骰未通过时显式返回 `[出图跳过]` 与原因（含保底进度），引导模型直接以自然文本收尾。
 - **多级情绪分类与同义词映射**：本地文件夹即分类（如 `开心`、`得意`、`难过`、`困惑`），内置同义词与情绪衍生词映射（如「兴奋 → 开心」「委屈 → 难过」）。
 - **细粒度频控与防刷屏**：全局发图冷却 + 单分类独立冷却 + 内存 LRU 滑动窗口，自动规避近期重复与分类扎堆。
-- **语义检索（可选增强）**：每张表情的「使用场景描述」经 embedding 入索引，`mood` 一句话即可召回最贴切的候选池；检索引擎（Hybrid Recall：BM25 + Cosine + RRF 融合）复用 [cortico-world-memory](https://github.com/hth768/cortico-world-memory) 的实现，跨包动态加载、**未随本仓库分发**。
+- **语义检索（可选增强）**：每张表情的「使用场景描述」经 embedding 入索引，`mood` 一句话即可召回最贴切的候选池；检索引擎（Hybrid Recall：BM25 + Cosine + RRF 融合）**内置于本包**（`src/semantic-engine.ts`），不依赖任何其它 world。
 - **三级退化**：语义检索 → 同义词表匹配 → 全库随机，任一环节不可用都不影响出图。
 - **治理边界**：本扩展被停用时工具随之消失，任何链路都无法发图；发图频率只由本扩展裁决。
 
@@ -64,6 +64,16 @@
 | **协议扩展** | `bridgeMode: false` | `qq_sticker_pick` 掷骰后返回候选，模型把 `[表情包:分类/文件名]` 写进正文，由 QQ 协议扩展（如 `cortico-world-qq-final`）发出 |
 
 ### 4. 语义检索（可选）
+
+索引文件 `sticker-semantic/vector-memory.json` 自带清单：`schema`（格式版本）、`model_name`（出向量的模型）、
+`dimension`（向量维度）、`updated_at`。启动时会做三件事：
+
+- **维度对账**：与当前维度不一致的条目在检索时跳过（换过 embedding 模型不会炸库），日志会报「N 条维度不符已跳过」；
+- **失效清理**：表情被删/改名后，对应向量会被清掉，日志报「清掉 N 条已失效」；
+- **后台补向量**：缺向量的条目按批补，`qq_sticker_curate(operation="audit")` 能看到待补数量。
+
+换 embedding 模型或维度时不需要手动删索引：旧向量会被判定为维度不符而跳过，缺的会按新模型补上。
+
 
 语义描述放在表情库旁的 `sticker-semantic/semantic.json`，由一次性迁移脚本按内容哈希生成（详见下文「语义索引」）。未配置 embedding 端点时自动只走 BM25 文本检索。
 
@@ -129,7 +139,7 @@
 | [cortico-world-emote-pics](https://www.npmjs.com/package/cortico-world-emote-pics) | MIT | 桌宠侧情绪配图与概率频控的产品思路；实现为本项目独立编写 |
 | [meme_manager](https://github.com/anka-afk/astrbot_plugin_meme_manager)（AstrBot 插件） | MIT | 语义元数据字段格式（`content_sha256` / `caption` / `tags`）兼容；**未包含其代码**，仅做数据格式对接 |
 | [cortico-world-qq-final](https://www.npmjs.com/package/cortico-world-qq-final) | MIT | `[表情包:路径]` 标记与分段发送的消息形态约定 |
-| [cortico-world-memory](https://github.com/hth768/cortico-world-memory) | 见上游仓库 | 语义检索的 Hybrid Recall 引擎由其提供，跨包动态加载、未复制代码；缺失时自动退化 |
+| [cortico-world-memory](https://github.com/hth768/cortico-world-memory) | 见上游仓库 | 早期版本跨包复用它；现在本包自带引擎（见 `src/semantic-engine.ts`），**无需安装**，仅在鸣谢里保留出处 |
 
 > **边界声明**：本仓库不包含任何第三方项目的源代码或素材；表情包图片与语义描述均为使用者本地数据，未随仓库分发。与上游的交互均通过公开接口或公开数据格式完成。若权利人认为有不妥之处，欢迎提 issue 沟通处理。
 
