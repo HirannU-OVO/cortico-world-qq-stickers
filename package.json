@@ -26,11 +26,23 @@
     "displayName": "QQ表情管理",
     "describe": "describe.json",
     "tags": [
+      "experimental",
+      "im",
       "qq",
-      "stickers",
-      "emoji"
+      "companion",
+      "creative"
     ],
-    "icon": "icon.svg"
+    "icon": "icon.svg",
+    "locales": {
+      "zh": {
+        "displayName": "QQ表情管理",
+        "description": "智能匹配本地表情包库，内置频控冷却与同义词映射，只读无破坏。"
+      },
+      "en": {
+        "displayName": "QQ Sticker Selector",
+        "description": "Pick local QQ sticker images by emotion/scenario with cooldowns and read-only safety."
+      }
+    }
   },
   "files": [
     "src",
@@ -43,7 +55,7 @@
   "author": "HirannU",
   "repository": {
     "type": "git",
-    "url": "git+github.com/HirannU-OVO/cortico-world-qq-stickers.git"
+    "url": "git+https://github.com/HirannU-OVO/cortico-world-qq-stickers.git"
   },
   "homepage": "https://github.com/HirannU-OVO/cortico-world-qq-stickers#readme",
   "bugs": {
