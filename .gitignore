@@ -3,3 +3,11 @@ node_modules/
 .bak/
 .DS_Store
 Thumbs.db
+
+# Standard exclusions
+logs/
+data/
+cache/
+config.json
+.vscode/
+.idea/
