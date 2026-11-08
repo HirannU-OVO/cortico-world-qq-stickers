@@ -1,31 +1,55 @@
 {
   "name": "cortico-world-qq-stickers",
-  "version": "0.2.0",
+  "version": "0.3.2-dev.2",
   "type": "module",
-  "description": "Cortico World 扩展：QQ表情管理，按情感分类挑选/浏览本地 QQ 表情包库，内置频控冷却、概率掷骰、同义词智能映射与防重复机制。供 bot 挑选后以 [表情包:路径] 发送。只读，不改表情包本体。",
+  "description": "Cortico World 扩展（QQ 生态）：QQ 表情管理，按情感/场景挑选并浏览本地 QQ 表情包库，内置频控冷却、概率掷骰、同义词智能映射与防重复机制；供 bot 以 [表情包:路径] 发送。只读，不改表情包本体。",
   "license": "MIT",
   "keywords": [
     "cortico-world",
     "stickers",
     "qq",
-    "emoji"
+    "im",
+    "emoji",
+    "external-setup"
   ],
   "engines": {
     "node": ">=22"
   },
   "main": "./src/index.ts",
   "scripts": {
-    "check": "node --check src/index.ts"
+    "check": "node --check src/index.ts && node --check src/gate.ts && node scripts/check-env-sync.mjs",
+    "test": "node --experimental-strip-types test/semantic-engine.test.mjs"
   },
   "cortico": {
     "kind": "world",
     "api": 6,
     "displayName": "QQ表情管理",
-    "describe": "describe.json"
+    "describe": "describe.json",
+    "tags": [
+      "qq",
+      "stickers",
+      "emoji"
+    ]
   },
   "files": [
     "src",
     "describe.json",
-    "ENV_PROMPT.md"
-  ]
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "author": "HirannU",
+  "repository": {
+    "type": "git",
+    "url": "git+github.com/HirannU-OVO/cortico-world-qq-stickers.git"
+  },
+  "homepage": "https://github.com/HirannU-OVO/cortico-world-qq-stickers#readme",
+  "bugs": {
+    "url": "https://github.com/HirannU-OVO/cortico-world-qq-stickers/issues"
+  },
+  "private": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }
