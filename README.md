@@ -20,6 +20,32 @@
 
 ---
 
+## 架构与工作流程
+
+```text
+Coopanion 桌宠 (对话轮 / 主动搭话轮)
+  │  调用 qq_sticker_send(to, mood)
+  ▼
+cortico-world-qq-stickers (扩展核心控制层)
+  ├─ 频控门禁 (Gatekeeper)
+  │   ├─ 基础概率掷骰 (defaultChance) 与保底计数
+  │   ├─ 全局冷却 (cooldownSeconds) 与单分类冷却 (categoryCooldownSeconds)
+  │   └─ 防连发滑动窗口 (recentHistorySize LRU 避重)
+  │   └─ [未通过] 显式返回 [出图跳过] 及原因，引导模型纯文字收尾
+  ▼
+混合检索引擎 (内置 Hybrid Recall Engine)
+  ├─ 语义向量检索 (BM25 + Cosine + RRF 融合，接本地 Embedding)
+  ├─ 本地同义词与情绪分类映射 (三级优雅退化)
+  └─ 全库洗牌兜底
+  ▼
+发图通道分发
+  ├─ AstrBot 桥模式：经 AstrBot Open API 直发本机图片（独立单段收尾）
+  └─ 协议扩展模式：返回 [表情包:路径] 标记交由底层 QQ 协议扩展发出
+```
+
+---
+
+
 ## 配套插件
 
 本扩展与 **[cortico-world-qq-initiative](https://github.com/HirannU-OVO/cortico-world-qq-initiative)** 配合使用：
@@ -79,7 +105,7 @@
 
 ---
 
-## 工具列表
+## 工具 / 接口列表
 
 > 下表「权限」为工具对文件的读写级别：只读不落盘，执行会向外部发信，管理会改动表情库。
 
@@ -94,21 +120,28 @@
 
 ## 配置参数速查
 
-### 面板可见（`worlds.qq-stickers`）
+### 面板可见：发图通道（`world:qq-stickers-mode`）
 
-| 配置项 | 类型 | 默认值 | 说明 |
-| :--- | :--- | :--- | :--- |
-| `enabled` | boolean | `false` | 是否启用表情管理扩展 |
-| `emojiDir` | string | `""` | 表情包根目录（一级子文件夹即分类） |
-| `bridgeMode` | boolean | `false` | AstrBot 桥接模式：配图改由 `qq_sticker_send` 直发 |
-| `limit` | number | `5` | `qq_sticker_pick` 默认返回条数（1~20） |
-| `defaultChance` | number | `0.5` | 基础发图概率（0.0 ~ 1.0），保底次数由它推导 |
-| `cooldownSeconds` | number | `45` | 全局发图冷却（秒，0 关闭） |
-| `categoryCooldownSeconds` | number | `90` | 同一分类的最短间隔（秒，0 关闭） |
-| `recentHistorySize` | number | `10` | 防连发滑动窗口（记住最近张数） |
-| `defaultRandom` | boolean | `true` | 候选是否默认打乱 |
-| `promptEnabled` | boolean | `true` | 是否注入配图纪律说明 |
-| `promptText` | string | `""` | 附加说明，接在纪律正文之后（两套通道都生效） |
+| 面板显示名 | 配置 id | 类型 | 默认值 | 说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| AstrBot 桥模式 | `bridgeMode` | 布尔 | `false` | 打开后配图由 `qq_sticker_send` 直发本机表情，关闭后该工具停用；改完需重启 |
+| 直发回执标注选图来源 | `sendSourceNote` | 布尔 | `true` | 回执注明是语义匹配、分类关键词兜底还是随机抽取 |
+| 直发后把图也回给模型看 | `sendBackImage` | 布尔 | `false` | 直发成功后把图片作为附件回传模型供复核，想省 token 可关闭 |
+| 单图上限（MB） | `maxImageMb` | 数字 | `10` | 单张表情大小上限（1~100MB），超限直接跳过 |
+
+### 面板可见：情感与频控（`world:qq-stickers`）
+
+| 面板显示名 | 配置 id | 类型 | 默认值 | 说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| 表情库根目录 | `emojiDir` | 字符串 | 无 | 本机表情包存放目录，需填入本地文件夹路径 |
+| 默认返回条数 | `limit` | 数字 | `5` | `qq_sticker_pick` 默认候选条数（1~20） |
+| 基础触发概率 (0~1) | `defaultChance` | 数字 | `0.5` | 模型尝试出图时的基础掷骰概率，未命中引导纯文本回复 |
+| 全局发图冷却时间 (秒) | `cooldownSeconds` | 数字 | `45` | 两次发图之间的最短间隔时间，设为 0 关闭 |
+| 同类情感冷却时间 (秒) | `categoryCooldownSeconds` | 数字 | `90` | 同一分类连续出图的最短间隔，避免表情扎堆 |
+| 防重复历史记忆窗口 | `recentHistorySize` | 数字 | `10` | 内存中记录最近出过的表情张数，匹配充足时强制避开 |
+| 默认随机乱序 | `defaultRandom` | 布尔 | `true` | 未显式指定时是否默认打乱候选顺序 |
+| 注入情绪配图说明 | `promptEnabled` | 布尔 | `true` | 系统前缀中是否自动注入发图纪律与表情库概览 |
+| 附加说明（可选） | `promptText` | 字符串 | 无 | 接在发图纪律正文后的自定义提示词说明，留空不追加 |
 
 ### 运营层（配置文件，不进面板）
 
@@ -122,6 +155,16 @@
 
 ---
 
+## 常见排障
+
+| 现象 | 原因 | 处理 |
+| :--- | :--- | :--- |
+| 模型调了 `qq_sticker_send` 却没发出图片 | 基础概率掷骰未通过或处于发图冷却期 | 检查回执中的 `[出图跳过]` 原因；频控保护下未通过时会附带保底进度并引导模型以纯文字收尾，属于正常预期行为 |
+| 语义检索未生效，回执总显示兜底或随机 | 本地 Embedding 端点未连通或未配置 | 检查运营层配置 `semanticEmbeddingUrl` 是否已连通本机端点；未配置时会自动降级为 BM25 关键词与同义词分类兜底 |
+| 新加的表情图片如何建立语义描述与向量 | 需执行策展流程提取特征并写入索引 | 图片放入对应分类目录后，可通过 `qq_sticker_curate(operation="audit")` 检查待补列表，并用 `describe` 补充描述生成向量 |
+
+---
+
 ## 语义索引
 
 - **描述来源**：兼容 [meme_manager](https://github.com/anka-afk/astrbot_plugin_meme_manager)（anka，MIT）的 `semantic_metadata.json` 格式，用 `scripts/export-semantic.cjs` 按 `content_sha256` 映射到本地文件路径，产出 `sticker-semantic/semantic.json`。
@@ -130,20 +173,14 @@
 
 ---
 
-## 参考与致谢
+## 依赖与参考
 
-本项目为原创实现。下表列明所参考的项目、参考内容及其边界：
-
-| 项目 | 许可 | 我们参考了什么 |
+| 上游项目 | 用途 | 许可 |
 | :--- | :--- | :--- |
-| [cortico-world-emote-pics](https://www.npmjs.com/package/cortico-world-emote-pics) | MIT | 桌宠侧情绪配图与概率频控的产品思路；实现为本项目独立编写 |
-| [meme_manager](https://github.com/anka-afk/astrbot_plugin_meme_manager)（AstrBot 插件） | MIT | 语义元数据字段格式（`content_sha256` / `caption` / `tags`）兼容；**未包含其代码**，仅做数据格式对接 |
-| [cortico-world-qq-final](https://www.npmjs.com/package/cortico-world-qq-final) | MIT | `[表情包:路径]` 标记与分段发送的消息形态约定 |
-| [cortico-world-memory](https://github.com/hth768/cortico-world-memory) | 见上游仓库 | 早期版本跨包复用它；现在本包自带引擎（见 `src/semantic-engine.ts`），**无需安装**，仅在鸣谢里保留出处 |
+| [cortico-world-emote-pics](https://www.npmjs.com/package/cortico-world-emote-pics) | 桌宠情绪配图与概率频控的产品思路参考 | MIT |
+| [meme_manager](https://github.com/anka-afk/astrbot_plugin_meme_manager) | 语义元数据字段（`content_sha256` / `caption` / `tags`）的格式对接参考 | MIT |
+| [cortico-world-qq-final](https://www.npmjs.com/package/cortico-world-qq-final) | `[表情包:路径]` 标记与分段发送的消息形态约定参考 | MIT |
 
-> **边界声明**：本仓库不包含任何第三方项目的源代码或素材；表情包图片与语义描述均为使用者本地数据，未随仓库分发。与上游的交互均通过公开接口或公开数据格式完成。若权利人认为有不妥之处，欢迎提 issue 沟通处理。
-
----
 
 ## 许可证
 

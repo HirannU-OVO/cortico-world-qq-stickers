@@ -1,9 +1,16 @@
-## [Unreleased]
-
-开发中（`package.json` 记 `0.3.2-dev.1`）。按规范，正式发布打 Tag 时再把这里整合成 `0.3.2`。
+## [0.3.2] - 2026-11-15
 
 ### 变更
 
+- **包元数据补齐**：`repository` / `homepage` / `bugs` / `cortico.tags` 齐备，市场详情页会显示仓库入口与标签。
+
+- **直发回执标注选图来源**：`qq_sticker_send` 现在会写明这张图是**按语义匹配**（落在语义候选池里）、
+  **按分类/关键词兜底**还是**随机挑的**；开关 `sendSourceNote`（默认开），只多一行字、不占上下文。
+- **单图上限做成设置项**：新增 `worlds.qq-stickers.maxImageMb`（默认 10，范围 1~100），直发与回传共用这一条线；
+  原来写死的 5.5MB 常量换成 `DEFAULT_MAX_IMAGE_MB` 兜底，
+  6MB 级的 GIF 不再被直接跳过。
+- **直发后回图给模型看**：`sendBackImage`（默认关）打开后，直发成功时把同一张图作为附件回给模型，
+  能自己核对这张选得对不对；关着就只报文件名，省上下文。
 - **语义索引改为自带引擎，不再依赖其它 world**：原来 `src/semantic.ts` 会跨包动态 import
   `cortico-world-memory` 的 `VectorStore` / `EmbeddingClient`，那个世界一被卸载或精简，语义检索就整段失效
   （日志「表情语义索引不可用」），对只想装表情包的用来说等于被强制多装一个 world。

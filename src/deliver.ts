@@ -18,8 +18,8 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 
-/** 表情包单图上限，与 pickStickerFile 的 5.5MB 约束对齐；超限直接跳过不报错。 */
-const MAX_IMAGE_BYTES = 5.5 * 1024 * 1024;
+/** 表情包单图上限默认值（MB），可被配置 maxImageMb 覆盖；超限直接跳过不报错。 */
+const DEFAULT_MAX_IMAGE_MB = 10;
 
 const DEFAULT_API_BASE = 'http://127.0.0.1:6185';
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -45,6 +45,8 @@ export interface StickerDeliverConfig {
   bridgeApiToken?: string;
   /** umo 平台名（AstrBot 里 aiocqhttp 平台的自定义 id），如「bot」。 */
   bridgePlatformId?: string;
+  /** 单图上限（MB），默认 10；面板 worlds.qq-stickers.maxImageMb 传进来。 */
+  maxImageMb?: number;
 }
 
 /** private:/group: 地址 → AstrBot unified_msg_origin；解析失败返回 null。 */
@@ -88,7 +90,14 @@ export async function deliverSticker(
   const file = join(emojiDir, ...rel.split('/'));
   try {
     const size = (await stat(file)).size;
-    if (size > MAX_IMAGE_BYTES) return { ok: false, error: `图片太大（${Math.round(size / 1024)}KB），跳过` };
+    const limitMb = Number(cfg.maxImageMb);
+    const limitBytes =
+      (Number.isFinite(limitMb) && limitMb >= 1 ? limitMb : DEFAULT_MAX_IMAGE_MB) * 1024 * 1024;
+    if (size > limitBytes)
+      return {
+        ok: false,
+        error: `图片太大（${(size / 1024 / 1024).toFixed(1)}MB，上限 ${Math.round(limitBytes / 1024 / 1024)}MB），跳过`,
+      };
 
     const bytes = await readFile(file);
     const base = (cfg.bridgeApiUrl || '').trim() || DEFAULT_API_BASE;

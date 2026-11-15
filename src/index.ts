@@ -47,6 +47,14 @@ interface CatalogConfig {
    */
   bridgeMode?: boolean;
 
+  /** 直发成功后把这张图也回给模型看一眼（默认关：省上下文 token）。 */
+  sendBackImage?: boolean;
+  /** 直发回执是否标注这张图怎么选出来的（默认开：一行字，不花上下文）。 */
+  sendSourceNote?: boolean;
+
+  /** 直发/回传的单图上限（MB，默认 10，1~100）。超限的图直接跳过。 */
+  maxImageMb?: number;
+
   // 直发通道（运营层，不进面板）：经 AstrBot Open API 把本机表情发出。
   /** AstrBot 面板地址，如 http://127.0.0.1:6185。留空用默认。 */
   bridgeApiUrl?: string;
@@ -120,8 +128,8 @@ const MIME_BY_EXT: Record<string, string> = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
 };
-/** 桥的 deliver 限制是 6MB，这里留一点余量。 */
-const MAX_STICKER_BYTES = 5.5 * 1024 * 1024;
+/** 单图上限默认值（MB）；面板 worlds.qq-stickers.maxImageMb 可改，deliver.ts 同源兜底。 */
+const DEFAULT_MAX_IMAGE_MB = 10;
 
 const STICKER_TOOL_SPEC = {
   name: 'qq_sticker_pick',
@@ -404,6 +412,32 @@ class StickerCatalogWorld implements World {
                   '频率仲裁（概率/保底/冷却/防连发）仍然保留。关闭后 qq_sticker_send 停用。改完需重启本 World 才生效。',
                 'x-hot': false,
               },
+              'worlds.qq-stickers.sendSourceNote': {
+                type: 'boolean',
+                title: '直发回执标注选图来源',
+                description:
+                  '打开后 qq_sticker_send 的回执会写明这张图是按语义匹配、分类关键词兜底还是随机挑的；' +
+                  '只多一行字，不占上下文。',
+                'x-hot': true,
+              },
+              'worlds.qq-stickers.sendBackImage': {
+                type: 'boolean',
+                title: '直发后把图也回给模型看',
+                description:
+                  '打开后 qq_sticker_send 直发成功的同时，把这张图作为附件回给模型，能自己核对选得对不对；' +
+                  '代价是每轮配图多占一点上下文，想省 token 就关掉。',
+                'x-hot': true,
+              },
+              'worlds.qq-stickers.maxImageMb': {
+                type: 'number',
+                title: '单图上限（MB）',
+                description:
+                  '超过这个大小的表情直接跳过不发。AstrBot 的上传接口本身能吃 512MB，但 QQ 端图片一般 20~30MB 就到顶，' +
+                  '所以别超过 30。默认 10，范围 1~100。',
+                minimum: 1,
+                maximum: 100,
+                'x-hot': true,
+              },
             },
           },
         },
@@ -640,7 +674,7 @@ class StickerCatalogWorld implements World {
       : '这张图还没有语义描述。看完图后用 operation=describe 回填。';
     try {
       const buf = readFileSync(join(this.root(), item.rel));
-      if (buf.byteLength > MAX_STICKER_BYTES) {
+      if (buf.byteLength > this.maxImageBytes()) {
         return { text: `「${item.rel}」${(buf.byteLength / 1024 / 1024).toFixed(1)}MB，超过看图上限，没法回传。${status}` };
       }
       const mime = MIME_BY_EXT[extname(item.name).toLowerCase()] ?? 'image/png';
@@ -809,14 +843,14 @@ class StickerCatalogWorld implements World {
       };
     }
 
-    // 库里有约 10 张超过 5.5MB（最大 11.7MB），随机命中就直接换一张，最多试 3 次
+    // 库里最大的约 11.7MB，超过上限的直接换一张，最多试 3 次
     let pick = pool[Math.floor(Math.random() * pool.length)];
     let bytes: Uint8Array | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       const candidate = attempt === 0 ? pick : pool[Math.floor(Math.random() * pool.length)];
       try {
         const buf = readFileSync(join(this.root(), candidate.rel));
-        if (buf.byteLength <= MAX_STICKER_BYTES) {
+        if (buf.byteLength <= this.maxImageBytes()) {
           pick = candidate;
           bytes = buf;
           break;
@@ -827,7 +861,7 @@ class StickerCatalogWorld implements World {
     }
     if (!bytes) {
       return {
-        text: '连试 3 张都读不出来或超过桥的 6MB 上限，换个月份/分类再挑吧。',
+        text: `连试 3 张都读不出来或超过 ${this.maxImageMb()}MB 上限，换个月份/分类再挑吧。`,
         failed: true as const,
       };
     }
@@ -851,6 +885,17 @@ class StickerCatalogWorld implements World {
   }
 
   /** 桥接模式开关：配置为 true 时不再走本地 [表情包:路径] 那条路。 */
+  /** 单图上限（MB）：面板 worlds.qq-stickers.maxImageMb，1~100，默认 10。 */
+  private maxImageMb(): number {
+    const mb = Number(this.cfg.maxImageMb);
+    return Number.isFinite(mb) && mb >= 1 ? Math.min(100, mb) : DEFAULT_MAX_IMAGE_MB;
+  }
+
+  /** 单图上限（字节）。 */
+  private maxImageBytes(): number {
+    return Math.round(this.maxImageMb() * 1024 * 1024);
+  }
+
   private bridgeMode(): boolean {
     return this.cfg.bridgeMode === true;
   }
@@ -860,7 +905,7 @@ class StickerCatalogWorld implements World {
    * 先掷骰（与 qq_sticker_pick 同账本：概率/保底/全局与分类冷却/防连发），
    * 通过才把图作为独立一段发出；没过或失败都回显跳过原因，绝不抛错。
    */
-  private async sendSticker(args: Record<string, unknown>): Promise<string> {
+  private async sendSticker(args: Record<string, unknown>): Promise<string | ToolOutcome> {
     this.applyGateConfig();
     const to = String(args.to ?? '').trim();
     if (!to) {
@@ -886,6 +931,7 @@ class StickerCatalogWorld implements World {
       bridgeApiUrl: this.cfg.bridgeApiUrl,
       bridgeApiToken: this.cfg.bridgeApiToken,
       bridgePlatformId: this.cfg.bridgePlatformId,
+      maxImageMb: this.maxImageMb(),
     };
     const log = {
       info: (msg: string, fields?: Record<string, unknown>) => this.host?.log.info(msg, fields),
@@ -896,7 +942,53 @@ class StickerCatalogWorld implements World {
       this.host?.log.warn(`[表情包] ${to} 直发没发出去：${result.error ?? '未知原因'}`);
       return `[出图跳过] ${result.error ?? '发送失败'}；别重试、别解释，直接结束。`;
     }
-    return `已补一张表情包（${pick.rel}，单独一段）。收尾即可，不用提图。`;
+
+    // 选图来源：只有落在语义候选池里才算语义匹配，其余都是兜底
+    let source = '';
+    if (this.cfg.sendSourceNote !== false) {
+      const fromSemantic = !!prefer && prefer.includes(pick.rel);
+      source = fromSemantic
+        ? `，按语义匹配${mood ? `「${mood}」` : ''}`
+        : mood
+          ? '，语义没中，按分类/关键词兜底'
+          : '，随机挑的';
+    }
+
+    if (this.cfg.sendBackImage === true) {
+      const bytes = this.readStickerBytes(pick.rel);
+      if (bytes) {
+        return {
+          text: `已补一张表情包（${pick.rel}${source}，单独一段）。图在回执里，不用再提。`,
+          blobs: [
+            {
+              bytes: bytes.bytes,
+              mime: bytes.mime,
+              name: pick.rel.split('/').pop() || 'sticker',
+              fallbackText: `[表情包 ${pick.rel}]`,
+            },
+          ],
+        };
+      }
+    }
+
+    return `已补一张表情包（${pick.rel}${source}）。收尾即可，不用提图。`;
+  }
+
+  /** 读一张表情的字节，直发后回图给模型看时用；读不到或格式不支持返回 null。 */
+  private readStickerBytes(rel: string): { bytes: Buffer; mime: string } | null {
+    try {
+      const ext = extname(rel).toLowerCase();
+      const mime =
+        ext === '.gif' ? 'image/gif'
+          : ext === '.png' ? 'image/png'
+            : ext === '.webp' ? 'image/webp'
+              : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg'
+                : '';
+      if (!mime) return null;
+      return { bytes: readFileSync(join(this.root(), ...rel.split('/'))), mime };
+    } catch {
+      return null;
+    }
   }
 
   private root(): string {
@@ -1002,6 +1094,9 @@ export const STICKER_CATALOG_WORLD: WorldDefinition<CatalogConfig> = {
     promptEnabled: true,
     promptText: '',
     bridgeMode: false,
+    sendBackImage: false,
+    maxImageMb: 10,
+    sendSourceNote: true,
     bridgeApiUrl: 'http://127.0.0.1:6185',
     bridgeApiToken: '',
     bridgePlatformId: '',

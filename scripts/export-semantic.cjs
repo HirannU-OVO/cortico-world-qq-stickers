@@ -11,9 +11,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const PACKS = process.argv[2] || 'D:/Tools/QQbot/AstrBot/instances/fd5a26eb-3c69-4bfd-96d0-816c067b27bb/core/data/plugin_data/meme_manager/packs';
-const LIB = process.argv[3] || 'D:/Tools/Coopanion/data/home/companion/sticker-library';
-const OUT = process.argv[4] || 'D:/Tools/Coopanion/data/home/companion/sticker-semantic';
+const PACKS = process.argv[2] || process.env.MEME_PACKS_DIR;
+const LIB = process.argv[3] || process.env.STICKER_LIBRARY_DIR;
+const OUT = process.argv[4] || process.env.STICKER_SEMANTIC_DIR || path.resolve('./sticker-semantic');
+
+if (!PACKS || !LIB) {
+  console.error('用法：node scripts/export-semantic.cjs <meme_packs_dir> <emoji_dir> [out_dir]');
+  console.error('或配置环境变量 MEME_PACKS_DIR 与 STICKER_LIBRARY_DIR');
+  process.exit(1);
+}
 
 // 1) 汇总各包元数据：sha → {caption, tags, category, vision_model, prompt_version}
 const bySha = new Map();

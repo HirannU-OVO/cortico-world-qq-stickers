@@ -1,6 +1,6 @@
 {
   "name": "cortico-world-qq-stickers",
-  "version": "0.3.2-dev.1",
+  "version": "0.3.2",
   "type": "module",
   "description": "Cortico World 扩展（QQ 生态）：QQ 表情管理，按情感/场景挑选并浏览本地 QQ 表情包库，内置频控冷却、概率掷骰、同义词智能映射与防重复机制；供 bot 以 [表情包:路径] 发送。只读，不改表情包本体。",
   "license": "MIT",
@@ -26,22 +26,36 @@
     "displayName": "QQ表情管理",
     "describe": "describe.json",
     "tags": [
+      "experimental",
+      "im",
       "qq",
-      "stickers",
-      "emoji"
-    ]
+      "companion",
+      "creative"
+    ],
+    "icon": "icon.svg",
+    "locales": {
+      "zh": {
+        "displayName": "QQ表情管理",
+        "description": "智能匹配本地表情包库，内置频控冷却与同义词映射，只读无破坏。"
+      },
+      "en": {
+        "displayName": "QQ Sticker Selector",
+        "description": "Pick local QQ sticker images by emotion/scenario with cooldowns and read-only safety."
+      }
+    }
   },
   "files": [
     "src",
     "describe.json",
     "README.md",
     "CHANGELOG.md",
+    "icon.svg",
     "LICENSE"
   ],
   "author": "HirannU",
   "repository": {
     "type": "git",
-    "url": "git+github.com/HirannU-OVO/cortico-world-qq-stickers.git"
+    "url": "git+https://github.com/HirannU-OVO/cortico-world-qq-stickers.git"
   },
   "homepage": "https://github.com/HirannU-OVO/cortico-world-qq-stickers#readme",
   "bugs": {
